@@ -3,7 +3,7 @@ import psycopg2
 
 
 # first question
-def top_articals(num=99, view_only=False):
+def top_articals(num=99):
     """
     the most popular ? articles sorted by most viewed
     return list of articles and views for each
@@ -12,34 +12,19 @@ def top_articals(num=99, view_only=False):
     db = psycopg2.connect("dbname=news")
     cur = db.cursor()
 
-    # creating a view represinting
-    #   articles.slug , view_counts
-    #   whith code 200 statue
-    #   path contain /articales/<article slug>
-    cur.execute('''CREATE OR REPLACE view visits_articles as
-                    select a.slug , count(log.path)
-                    from log
-                    right join articles as a
-                    on (log.status like '%%200%%')
-                    and (log.path like concat('%%/article/%%',a.slug))
-                    group by a.slug ''')
-    # previsouse view will be need to calculate top authors
-    #  so escape after needed
-    if view_only:
-        # commit and closer connection
-        db.commit()
-
-        cur.close()
-        db.close()
-        return
-
     # preparing reqierd table of
     #   articles.title   , views_count
-    cur.execute('''SELECT a.title , count
-                    from visits_articles , articles as a
-                    where a.slug = visits_articles.slug
-                    order by count desc
-                    limit %s;''', (num, ))
+    #   whith code 200 statue
+    #   path contain /articales/<article slug>
+    cur.execute('''
+                select a.title , count(log.path)
+                from log
+                right join articles as a
+                on (log.status like '%%200%%')
+                and (log.path like concat('%%/article/%%',a.slug))
+                group by a.title
+                order by count desc
+                limit %s;''', (num, ))
 
     res = cur.fetchall()
 
@@ -58,16 +43,14 @@ def top_author(num=99):
     db = psycopg2.connect("dbname=news")
     cur = db.cursor()
 
-    # create view of articals and views for each of them
-    top_articals(view_only=True)
-
     # creating list of author and  sum of view_count  for thier articles
-    cur.execute('''SELECT authors.name, sum(visits_articles.count)
-                    from authors,articles,visits_articles
-                    where articles.slug = visits_articles.slug
+    cur.execute('''SELECT authors.name, count(log.path)
+                    from authors,articles,log
+                    where (log.status like '%%200%%')
+                    and (log.path like concat('%%/article/%%',articles.slug))
                     and authors.id = articles.author
                     group by authors.name
-                    order by sum desc
+                    order by count desc
                     limit %s''', (num, ))
 
     res = cur.fetchall()

@@ -92,16 +92,7 @@ Rudolf von Treppenwitz        423457
 # reqierd views
  you don't need to create those views they are already included in python source code as create or replace
 
-## view for articles and its views count
-```sql
-CREATE OR REPLACE view visits_articles as
-select a.slug , count(log.path)
-from log
-right join articles as a
-on (log.status like '%%200%%')
-and (log.path like concat('%%/article/%%',a.slug))
-group by a.slug 
-```
+
 ## error count for every day
 ```sql
 CREATE OR REPLACE view error_count as
